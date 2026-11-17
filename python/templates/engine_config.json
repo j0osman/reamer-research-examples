@@ -1,0 +1,11 @@
+{
+  "initial_capital": 10000.0,
+  "leverage": 1.0,
+  "commission_per_unit": 0.005,
+  "commission_mode": "round_trip",
+  "slippage": 0.01,
+  "spread": 0.02,
+  "ohlcv_type": "midpoint",
+  "price_volatility": 0.05,
+  "rng_seed": 42
+}

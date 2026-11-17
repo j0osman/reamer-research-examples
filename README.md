@@ -1,0 +1,124 @@
+# Reamer Research examples
+
+Example strategies, strategy templates, data ingestion scripts and
+market-data fetchers for
+[Reamer Research](https://reamerlabs.com/products/reamer-research), a
+backtesting engine for Python and C++ that also trades live. The code here
+is MIT licensed. The engine is commercial software, and it runs without a
+key in Evaluation Mode.
+
+## Speed
+
+In [What a Backtest Costs](https://reamerlabs.com/papers/what-a-backtest-costs.pdf),
+on one AMD EPYC 9575F with Reamer Research 4.6.0, 500,000 bars of the
+paper's realistic strategy ran at 148,000 bars per second through the
+Python path and 1.39 million through the C++ path. Backtrader,
+NautilusTrader and QuantConnect LEAN ran the same strategy on the same data
+at 6,500 to 37,000. Versions are pinned and the raw results are public.
+
+## Get the engine
+
+The engine is not in this repository. Download the Reamer Research kit,
+free and with no key, from
+**[reamerlabs.com/download](https://reamerlabs.com/download)**
+(direct mirror: [licenses.reamerlabs.com/evaluation/research](https://licenses.reamerlabs.com/evaluation/research)).
+It runs on Linux x86_64 (and Windows under WSL2) and macOS on Apple
+silicon, and holds the Python wheel, the C++ header and library, the
+documentation and `LICENSE.txt`.
+
+Then, with Python 3.9 or later:
+
+```bash
+pip install research-kit-*/python/reamer_research-*.whl
+git clone https://github.com/j0osman/reamer-research-examples
+cd reamer-research-examples/python
+python3 examples/quickstart.py
+```
+
+`quickstart.py` runs an ATR band reversion with a bracket on every entry
+over `sample_data/SAMPLE_5min.csv`, prints the summary and opens the run in
+the visual trade diagnostics tool. Run it twice: the output is identical.
+
+## Getting data in
+
+One short script per source. Each one runs a strategy on what it loads, and
+each fits inside Evaluation Mode.
+
+| Script | Source | What it shows |
+|---|---|---|
+| [`data_csv.py`](python/examples/data_csv.py) | CSV | Pass the path to `rr.backtest`, or `rr.load_csv` it first. Date and Time columns or one timestamp column (epoch s/ms or a date string), any header case, MetaTrader headers, comma, semicolon or tab. |
+| [`data_bin.py`](python/examples/data_bin.py) | `.bin` | `rr.write_bin` once; every later run memory-maps the file, with `start=`/`end=` picking a range inside it. |
+| [`data_parquet.py`](python/examples/data_parquet.py) | Parquet, pandas | `pd.read_parquet` and pass the DataFrame. A DatetimeIndex or a time column, timezone-aware or UTC. Anything pandas reads works the same way. |
+| [`data_alpaca.py`](python/examples/data_alpaca.py) | Alpaca | Crypto with no key, US stocks with free paper keys; trade counts and VWAP notional filled from Alpaca. |
+| [`data_databento.py`](python/examples/data_databento.py) | Databento | A DBN file you already have, or a download priced first and refused above $1.00. |
+
+The CSV, `.bin` and Parquet scripts load the same sample bars and print the
+same result, bar for bar.
+
+The short version:
+
+```python
+import reamer_research as rr
+from fetchers.alpaca_bars import fetch_alpaca_crypto   # python/fetchers/
+
+rr.backtest(on_bar, 'AAPL.csv')                   # CSV path, ticker 'AAPL'
+rr.backtest(on_bar, 'AAPL.bin')                   # memory-mapped
+rr.backtest(on_bar, {'AAPL': df})                 # pandas DataFrame
+rr.backtest(on_bar, {'AAPL': numpy_bars})         # numpy array
+rr.backtest(on_bar, fetch_alpaca_crypto(['BTC/USD'], '1Hour', '2025-01-01', '2025-01-29'))
+```
+
+## Evaluation Mode
+
+Without a licence, each backtest is limited to:
+
+| Limit | Value |
+|---|---|
+| Tickers per run | 1 |
+| Bar time per run | 30 days (last bar timestamp minus first) |
+| Bars per run | 50,000 |
+
+The first limit reached applies. A run past a limit stops with an error that
+names the limit; nothing is silently cut. Monte Carlo and the visual trade
+diagnostics tool work within the limits. Live and paper trading through
+`rr.Relay` need a licence.
+
+A [Reamer Research licence](https://reamerlabs.com/pricing) is $20 a month
+and removes every limit. The same code runs unchanged.
+
+## Strategies and templates
+
+| Path | What it is |
+|---|---|
+| `python/examples/quickstart.py` | The smallest complete run, opened in the visual trade diagnostics tool. |
+| `python/examples/quickstart_run.py` | A costed run with `templates/engine_config.json`, which also measures entry cost against the bar. |
+| `python/examples/fetch_and_run.py` | A command-line downloader for Alpaca or Databento that runs a moving-average cross on the bars. |
+| `python/examples/*_strategy.py`, `atr_*_bracket.py` | Single-ticker strategies: market, limit and stop entries, brackets, GTD and IOC expiry, risk sizing, console logging. |
+| `python/examples/execution_test_suite.py`, `position_stress_test.py` | Strategies that exercise every order kind, time in force, bracket, partial close and reversal, to check fills against the [execution spec](https://reamerlabs.com/docs/execution-spec). |
+| `python/examples/multi_asset_*.py` | Multi-ticker strategies. They need a licence. |
+| `python/templates/` | Starting points to copy: buy and hold, mean reversion, ATR limit and stop brackets, and two multi-ticker templates (`multi_asset.py`, `replay_verify.py`) that need a licence. `engine_config.json` holds illustrative costs. |
+| `python/fetchers/` | Alpaca and Databento bar fetchers that return arrays `rr.backtest` takes directly. |
+| `python/sample_data/` | Synthetic bars; see its README. |
+| `cpp/examples/` | The same ideas in C++ with the one-header wrapper, built against the header and library in the kit. |
+
+Strategy classes run with `rr.backtest(StrategyClass, 'bars.csv', open_viewer=True)`.
+
+## Documentation
+
+- [Python package](https://reamerlabs.com/docs/python-package)
+- [C++ wrapper](https://reamerlabs.com/docs/cpp-wrapper)
+- [Execution spec](https://reamerlabs.com/docs/execution-spec): fills, slippage, spread, commission and margin
+- [Visual trade diagnostics](https://reamerlabs.com/docs/trade-viewer)
+- [Licensing and Evaluation Mode](https://reamerlabs.com/docs/licensing)
+- [What a Backtest Costs](https://reamerlabs.com/papers/what-a-backtest-costs.pdf): throughput, memory, scaling and reproducibility of four engines
+
+Questions: support@reamerlabs.com.
+
+## Licence
+
+The code in this repository is under the MIT License (`LICENSE`).
+
+The engine you download from reamerlabs.com is not: it is under the Reamer
+Labs Software License Agreement (`LICENSE.txt` in the kit, and in the
+wheel's `.dist-info/licenses/`), whose Section 2B grants Evaluation Mode
+without payment or a key.
