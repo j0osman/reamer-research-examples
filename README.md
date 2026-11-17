@@ -86,6 +86,28 @@ diagnostics tool work within the limits. Live and paper trading through
 A [Reamer Research licence](https://reamerlabs.com/pricing) is $20 a month
 and removes every limit. The same code runs unchanged.
 
+## Going live
+
+Reamer Research trades live without Reamer Server. Your loop feeds each
+closed bar to your strategy, `rr.Relay` sends the orders it returns over a
+Unix socket, and a receiver you run places them with your broker and sends
+the fills back. `python/live/` has all of it, standard library only:
+
+| Path | What it is |
+|---|---|
+| [`live/relay_receiver.py`](python/live/relay_receiver.py) | A complete receiver: the relay's wire format, a socket server, and `PaperBroker`, which fills orders against your bars. Swap `PaperBroker` for your broker's API to trade for real. |
+| [`live/live_paper.py`](python/live/live_paper.py) | The quickstart's `on_bar`, unchanged, run live against `PaperBroker`: a CSV replayed bar by bar, or Alpaca's free 1-minute crypto bars with no key. |
+
+```bash
+python3 live/live_paper.py                   # replay sample_data/SAMPLE_5min.csv
+python3 live/live_paper.py --alpaca BTC/USD  # live 1-minute bars, Ctrl-C to stop
+```
+
+The relay needs a licence; Evaluation Mode has no live trading. Linux and
+macOS, and Windows through WSL2. The steps, the wire format and what the
+relay sends are in
+[Live trading with Reamer Research](https://reamerlabs.com/docs/research-live).
+
 ## Strategies and templates
 
 | Path | What it is |
@@ -109,6 +131,7 @@ Strategy classes run with `rr.backtest(StrategyClass, 'bars.csv', open_viewer=Tr
 - [C++ wrapper](https://reamerlabs.com/docs/cpp-wrapper)
 - [Execution spec](https://reamerlabs.com/docs/execution-spec): fills, slippage, spread, commission and margin
 - [Visual trade diagnostics](https://reamerlabs.com/docs/trade-viewer)
+- [Live trading](https://reamerlabs.com/docs/research-live): the relay, a receiver and its wire format
 - [Licensing and Evaluation Mode](https://reamerlabs.com/docs/licensing)
 - [What a Backtest Costs](https://reamerlabs.com/papers/what-a-backtest-costs.pdf): throughput, memory, scaling and reproducibility of four engines
 
