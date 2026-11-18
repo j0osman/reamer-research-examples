@@ -39,6 +39,51 @@ python3 examples/quickstart.py
 over `sample_data/SAMPLE_5min.csv`, prints the summary and opens the run in
 the visual trade diagnostics tool. Run it twice: the output is identical.
 
+## Three ways to write a strategy
+
+`rr.backtest` takes the strategy as a function, a class or an object:
+
+```python
+rr.backtest(on_bar, 'AAPL.csv', lookback=20)     # a function on_bar(data)
+rr.backtest(AtrBands, 'AAPL.csv')                # a class with on_bar, instantiated once
+rr.backtest(AtrBands(k=2.5), 'AAPL.csv')         # an object with on_bar, configured by you
+```
+
+```python
+class AtrBands:
+    lookback = 20                      # bars per window, read off the class or object
+
+    def __init__(self, k=2.0, qty=10):
+        self.k, self.qty = k, qty      # settings
+        self.entries = 0               # state kept across bars
+
+    def on_bar(self, d):
+        c, h, l = d.close, d.high[1:], d.low[1:]
+        if c[0] == 0: return
+        atr = (np.maximum(h, c[:-1]) - np.minimum(l, c[:-1])).mean()
+        mid, px, band = c.mean(), c[-1], self.k * atr
+        if d.position() == 0 and px < mid - band:
+            self.entries += 1
+            return rr.buy_market(self.qty, take_profit=mid, stop_loss=px - band)
+        if d.position() == 0 and px > mid + band:
+            self.entries += 1
+            return rr.sell_market(self.qty, take_profit=mid, stop_loss=px + band)
+```
+
+The same rule gives the same result in every form. A function suits a rule
+that keeps no state; a class or object keeps settings and state across bars
+on `self`, and an object can be read after the run (`strategy.entries`).
+`quickstart.py` has the strategy in all three:
+
+```bash
+python3 examples/quickstart.py            # the function
+python3 examples/quickstart.py --class    # the class
+python3 examples/quickstart.py --object   # an object, read after the run
+```
+
+Most strategies in `examples/` and `templates/` are classes. In C++ a
+strategy is a lambda, a function or an object with `on_bar(rr::Data&)`.
+
 ## Getting data in
 
 One short script per source. Each one runs a strategy on what it loads, and
@@ -123,7 +168,7 @@ relay sends are in
 | `python/sample_data/` | Synthetic bars; see its README. |
 | `cpp/examples/` | The same ideas in C++ with the one-header wrapper, built against the header and library in the kit. |
 
-Strategy classes run with `rr.backtest(StrategyClass, 'bars.csv', open_viewer=True)`.
+Strategy classes run with `rr.backtest(StrategyClass, 'bars.csv', open_viewer=True)`, or as an object with `rr.backtest(StrategyClass(), 'bars.csv')`.
 
 ## Documentation
 
