@@ -14,6 +14,18 @@ for real; the codec and the server stay as they are.
     with Receiver('/tmp/reamer-live.sock', broker):
         ...  # rr.Relay('/tmp/reamer-live.sock', ['AAPL']) from here on
 
+Or run it as its own process, for a strategy in C++ or any other language:
+
+    python3 live/relay_receiver.py /tmp/reamer-live.sock
+
+That serves the relay on the socket with a PaperBroker, and a bar channel on
+"<socket>.bars" so the other process can mark each bar. One text line per
+bar, "<messages sent> <instrument> <ts> <open> <high> <low> <close>", answered
+"ok <fills so far>" once every relay message sent before it has arrived and
+the bar's fills are written to the relay socket, so a poll that follows reads
+them. cpp/live/live_paper.cpp drives it this way. The bar channel is only for
+paper trading against replayed or live bars; a broker integration has none.
+
 Wire format (Reamer Research 4.11.1 and later, ABI 8):
 
   Every frame is   version u8 (1) | payload length u32 big-endian | payload
@@ -67,6 +79,7 @@ Wire format (Reamer Research 4.11.1 and later, ABI 8):
 import os
 import socket
 import struct
+import sys
 import threading
 
 BUY, SELL = 0, 1
@@ -384,3 +397,71 @@ class PaperBroker:
                              'linked_intent_id': next((i for i in ids if i != me), '')},
                             report])
         return out
+
+
+def serve_bars(path, broker):
+    """The bar channel for a receiver run as its own process (see the module
+    docstring): mark each bar a client sends, after the relay messages it
+    names, and answer once the fills are on the relay socket."""
+    path = str(path)
+    if os.path.exists(path):
+        os.unlink(path)
+    server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    server.bind(path)
+    os.chmod(path, 0o600)
+    server.listen(8)
+
+    def serve(conn):
+        with conn, conn.makefile('rw', newline='\n') as f:
+            for line in f:
+                try:
+                    sent, instrument, ts, o, h, l, c = line.split()
+                    broker.wait_for(int(sent))
+                    broker.mark(instrument, {'ts': int(ts), 'open': float(o), 'high': float(h),
+                                             'low': float(l), 'close': float(c)})
+                    f.write(f'ok {len(broker.fills)}\n')
+                except (ValueError, TimeoutError) as e:
+                    f.write(f'error {e}\n')
+                f.flush()
+
+    def accept():
+        while True:
+            try:
+                conn, _ = server.accept()
+            except OSError:
+                return
+            threading.Thread(target=serve, args=(conn,), daemon=True).start()
+
+    threading.Thread(target=accept, daemon=True).start()
+    return server
+
+
+def main(argv=None):
+    import argparse
+    import signal
+    ap = argparse.ArgumentParser(description='A paper receiver for the relay, with a bar channel '
+                                             'at <socket>.bars (see this file\'s docstring).')
+    ap.add_argument('socket', nargs='?', default='/tmp/reamer-live.sock')
+    args = ap.parse_args(argv)
+    # Block SIGINT and SIGTERM before any thread or socket exists, then wait
+    # for one with sigwait: no signal can arrive between a check and a wait.
+    stop = {signal.SIGINT, signal.SIGTERM}
+    signal.pthread_sigmask(signal.SIG_BLOCK, stop)
+    broker = PaperBroker()
+    with Receiver(args.socket, broker):
+        bars = serve_bars(args.socket + '.bars', broker)
+        print(f'paper receiver on {args.socket}, bars on {args.socket}.bars; Ctrl-C to stop',
+              flush=True)
+        try:
+            signal.sigwait(stop)
+        finally:
+            bars.close()
+            try:
+                os.unlink(args.socket + '.bars')
+            except FileNotFoundError:
+                pass
+        print(f'{len(broker.fills)} fills')
+
+
+if __name__ == '__main__':
+    main()

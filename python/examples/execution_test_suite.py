@@ -192,8 +192,11 @@ class ExecutionTestSuite:
 
 
 if __name__ == '__main__':
-    print(f"{__name__} defines a strategy class ({ExecutionTestSuite.__name__}), "
-          "not a standalone script -- drive it with run_backtest() the way "
-          "examples/quickstart_run.py drives BuyAndHold, or pass it to "
-          "rr.backtest(..., open_viewer=True) to check every fill in the visual "
-          "trade diagnostics tool.")
+    # Runs on the sample bars, or on a CSV or .bin you pass:
+    #   python3 examples/execution_test_suite.py [bars.csv]
+    import sys
+    from pathlib import Path
+    import reamer_research as rr
+    bars = sys.argv[1] if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent / 'sample_data' / 'SAMPLE_5min.csv'
+    strategy = ExecutionTestSuite()
+    print(rr.backtest(strategy, {strategy.ticker: bars}, open_viewer=True))

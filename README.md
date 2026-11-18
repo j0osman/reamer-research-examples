@@ -136,16 +136,26 @@ and removes every limit. The same code runs unchanged.
 Reamer Research trades live without Reamer Server. Your loop feeds each
 closed bar to your strategy, `rr.Relay` sends the orders it returns over a
 Unix socket, and a receiver you run places them with your broker and sends
-the fills back. `python/live/` has all of it, standard library only:
+the fills back. `python/live/` has all of it, standard library only, and
+`cpp/live/` runs the same paper trade from C++:
 
 | Path | What it is |
 |---|---|
 | [`live/relay_receiver.py`](python/live/relay_receiver.py) | A complete receiver: the relay's wire format, a socket server, and `PaperBroker`, which fills orders against your bars. Swap `PaperBroker` for your broker's API to trade for real. |
 | [`live/live_paper.py`](python/live/live_paper.py) | The quickstart's `on_bar`, unchanged, run live against `PaperBroker`: a CSV replayed bar by bar, or Alpaca's free 1-minute crypto bars with no key. |
+| [`cpp/live/live_paper.cpp`](cpp/live/live_paper.cpp) | The quickstart's rule in C++ through `rr::Relay`, against the same receiver, which it starts itself. It reports the same fills and position as `live_paper.py`. |
 
 ```bash
 python3 live/live_paper.py                   # replay sample_data/SAMPLE_5min.csv
 python3 live/live_paper.py --alpaca BTC/USD  # live 1-minute bars, Ctrl-C to stop
+```
+
+From C++, with the kit unpacked at `$KIT`, from the repository root:
+
+```bash
+c++ -std=c++20 -O2 cpp/live/live_paper.cpp -I$KIT/include -L$KIT/lib -lreamer_research \
+  -Wl,-rpath,$KIT/lib -o live_paper
+./live_paper                                 # replay python/sample_data/SAMPLE_5min.csv
 ```
 
 The relay needs a licence; Evaluation Mode has no live trading. Linux and
@@ -166,7 +176,7 @@ relay sends are in
 | `python/templates/` | Starting points to copy: buy and hold, mean reversion, ATR limit and stop brackets, and two multi-ticker templates (`multi_asset.py`, `replay_verify.py`) that need a licence. `engine_config.json` holds illustrative costs. |
 | `python/fetchers/` | Alpaca and Databento bar fetchers that return arrays `rr.backtest` takes directly. |
 | `python/sample_data/` | Synthetic bars; see its README. |
-| `cpp/examples/` | The same ideas in C++ with the one-header wrapper, built against the header and library in the kit. |
+| `cpp/examples/` | The same ideas in C++ with the one-header wrapper, in all three strategy forms (a lambda, a function, an object with `on_bar`), plus `data_csv.cpp` and `data_bin.cpp` for getting bars in. Each runs on the sample bars in Evaluation Mode, built against the header and library in the kit: `c++ -std=c++20 -O2 cpp/examples/quickstart.cpp -I$KIT/include -L$KIT/lib -lreamer_research -Wl,-rpath,$KIT/lib -o quickstart && ./quickstart`. |
 
 Strategy classes run with `rr.backtest(StrategyClass, 'bars.csv', open_viewer=True)`, or as an object with `rr.backtest(StrategyClass(), 'bars.csv')`.
 

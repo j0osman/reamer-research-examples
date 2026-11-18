@@ -4,8 +4,7 @@ Buys 10 units on bar 5, closes on bar 15. Used to verify your build and data
 are working before adding real signal logic.
 
 Run:
-    PYTHONPATH=. ./build/reamer examples/sample_data.csv \
-        strategy.examples.quickstart_strategy QuickstartStrategy
+    python3 examples/quickstart_strategy.py [bars.csv]
 """
 
 from reamer_research import buy_market, close_position
@@ -38,3 +37,13 @@ class QuickstartStrategy:
             return close_position(ticker=ticker)
 
         return None
+
+
+if __name__ == '__main__':
+    # Runs on the sample bars, or on a CSV or .bin you pass:
+    #   python3 examples/quickstart_strategy.py [bars.csv]
+    import sys
+    from pathlib import Path
+    import reamer_research as rr
+    bars = sys.argv[1] if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent / 'sample_data' / 'SAMPLE_5min.csv'
+    print(rr.backtest(QuickstartStrategy, {QuickstartStrategy.ticker: bars}, open_viewer=True))

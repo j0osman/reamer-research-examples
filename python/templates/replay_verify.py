@@ -191,3 +191,21 @@ class ReplayVerify:
                            "S20 cancel")
 
         return out if out else None
+
+
+if __name__ == '__main__':
+    # Two tickers, so this needs a licence: Evaluation Mode runs one ticker.
+    # The sample bars stand in for each ticker unless you pass one file each:
+    #   python3 templates/replay_verify.py [AAPL.csv SPY.csv]
+    import sys
+    from pathlib import Path
+    import reamer_research as rr
+    sample = Path(__file__).resolve().parent.parent / 'sample_data' / 'SAMPLE_5min.csv'
+    files = sys.argv[1:] or [sample] * len(ReplayVerify.tickers)
+    try:
+        print(rr.backtest(ReplayVerify, dict(zip(ReplayVerify.tickers, files)), open_viewer=True))
+    except rr.ReamerError as e:
+        if e.code_name != 'LICENSE_MISSING':
+            raise
+        sys.exit(f'{Path(__file__).name} trades {len(ReplayVerify.tickers)} tickers and Evaluation Mode runs one; '
+                 'a Reamer Research licence removes the limit: https://reamerlabs.com/pricing')

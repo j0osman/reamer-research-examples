@@ -72,3 +72,13 @@ class ExpiryStrategy:
             return cancel_order(oid, ticker=ticker)
 
         return None
+
+
+if __name__ == '__main__':
+    # Runs on the sample bars, or on a CSV or .bin you pass:
+    #   python3 examples/expiry_strategy.py [bars.csv]
+    import sys
+    from pathlib import Path
+    import reamer_research as rr
+    bars = sys.argv[1] if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent / 'sample_data' / 'SAMPLE_5min.csv'
+    print(rr.backtest(ExpiryStrategy, {ExpiryStrategy.ticker: bars}, open_viewer=True))

@@ -117,8 +117,19 @@ class MultiAssetTestSuite:
 
 
 if __name__ == '__main__':
-    print(f"{__name__} defines a strategy class ({MultiAssetTestSuite.__name__}), "
-          "not a standalone script -- drive it with run_backtest() the way "
-          "examples/quickstart_run.py drives BuyAndHold, or pass it to "
-          "rr.backtest(..., open_viewer=True) to check every fill in the visual "
-          "trade diagnostics tool.")
+    # Two tickers, so this needs a licence: Evaluation Mode runs one ticker.
+    # The sample bars stand in for each ticker unless you pass one file each:
+    #   python3 examples/multi_asset_test_suite.py [AAPL.csv SPY.csv]
+    import sys
+    from pathlib import Path
+    import reamer_research as rr
+    sample = Path(__file__).resolve().parent.parent / 'sample_data' / 'SAMPLE_5min.csv'
+    strategy = MultiAssetTestSuite()
+    files = sys.argv[1:] or [sample] * len(strategy.tickers)
+    try:
+        print(rr.backtest(strategy, dict(zip(strategy.tickers, files)), open_viewer=True))
+    except rr.ReamerError as e:
+        if e.code_name != 'LICENSE_MISSING':
+            raise
+        sys.exit(f'{Path(__file__).name} trades {len(strategy.tickers)} tickers and Evaluation Mode runs one; '
+                 'a Reamer Research licence removes the limit: https://reamerlabs.com/pricing')

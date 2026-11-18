@@ -72,3 +72,13 @@ class AtrStopBracket:
                      stop_loss=buy_px - self.sl_mult * atr),
             sell_stop(close - offset, self.qty, ticker=ticker),
         )
+
+
+if __name__ == '__main__':
+    # Runs on the sample bars, or on a CSV or .bin you pass:
+    #   python3 examples/atr_stop_bracket.py [bars.csv]
+    import sys
+    from pathlib import Path
+    import reamer_research as rr
+    bars = sys.argv[1] if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent / 'sample_data' / 'SAMPLE_5min.csv'
+    print(rr.backtest(AtrStopBracket, {AtrStopBracket.ticker: bars}, open_viewer=True))

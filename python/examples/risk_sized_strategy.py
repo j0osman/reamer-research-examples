@@ -32,9 +32,11 @@ class RiskSizedStrategy:
         self.risk_per_trade = float(cfg.get("risk_per_trade", 200.0))
         self.sl_atr_mult   = float(cfg.get("sl_atr_mult", 1.5))
         self.tp_rr         = float(cfg.get("tp_rr", 2.0))
+        # Never more than the account can carry: the run starts with 10,000 at
+        # leverage 1, and an order past buying power is rejected for margin.
+        self.max_notional  = float(cfg.get("max_notional", 9500.0))
         self.lookback      = max(self.sma_period, self.atr_period + 1)
 
-        self.in_position = False
 
     def _atr(self, tv):
         if tv.close[0] == 0.0:
@@ -66,7 +68,7 @@ class RiskSizedStrategy:
         sma    = float(tv.close[-self.sma_period:].mean())
         atr    = self._atr(tv)
 
-        if atr is None or atr <= 0 or self.in_position:
+        if atr is None or atr <= 0 or data.position(ticker) != 0:
             return None
 
         if close > sma:
@@ -74,12 +76,12 @@ class RiskSizedStrategy:
             sl          = round(entry_est - self.sl_atr_mult * atr, 4)
             sl_distance = entry_est - sl
             tp          = round(entry_est + self.tp_rr * sl_distance, 4)
-            qty         = round(self._position_size(entry_est, sl), 4)
+            qty         = round(min(self._position_size(entry_est, sl),
+                                    self.max_notional / entry_est), 4)
 
             if qty <= 0:
                 return None
 
-            self.in_position = True
             print(
                 f"BUY qty={qty:.4f}  entry≈{entry_est:.2f}  "
                 f"SL={sl:.2f}  TP={tp:.2f}  "
@@ -88,3 +90,13 @@ class RiskSizedStrategy:
             return buy_market(qty, ticker=ticker, take_profit=tp, stop_loss=sl)
 
         return None
+
+
+if __name__ == '__main__':
+    # Runs on the sample bars, or on a CSV or .bin you pass:
+    #   python3 examples/risk_sized_strategy.py [bars.csv]
+    import sys
+    from pathlib import Path
+    import reamer_research as rr
+    bars = sys.argv[1] if len(sys.argv) > 1 else Path(__file__).resolve().parent.parent / 'sample_data' / 'SAMPLE_5min.csv'
+    print(rr.backtest(RiskSizedStrategy, {RiskSizedStrategy.ticker: bars}, open_viewer=True))
