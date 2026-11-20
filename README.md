@@ -30,7 +30,7 @@ Then, with Python 3.9 or later:
 
 ```bash
 pip install research-kit-*/python/reamer_research-*.whl
-git clone https://github.com/j0osman/reamer-research-examples
+git clone https://github.com/reamerlabs/reamer-research-examples
 cd reamer-research-examples/python
 python3 examples/quickstart.py
 ```
