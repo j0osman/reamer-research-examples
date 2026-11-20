@@ -174,9 +174,5 @@ def main():
 if __name__ == '__main__':
     try:
         main()
-    except rr.ReamerError as e:
-        if e.code_name != 'LICENSE_MISSING':
-            raise
-        sys.exit('live_paper.py: the relay needs a Reamer Research licence; Evaluation Mode has no '
-                 'live trading. Activate one with reamer-license activate <key>, or buy one at '
-                 'https://reamerlabs.com/pricing')
+    except rr.EvaluationLimit:
+        sys.exit(1)   # the engine has printed why: the relay needs a licence
